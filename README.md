@@ -1,5 +1,13 @@
 # Fitting-function-for-pytorch
-This function can use for training in Pytorch directly.
+### This function can use for training in Pytorch directly (only for MSE & Cross_entropy loss function).
+
+
+
+
+
+
+
+
 
 class Training_model:
     def __init__(self, model, max_epoch, batch_size, learning_rate, Input_shape, loss_function):
