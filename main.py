@@ -1,4 +1,5 @@
 class Training_model:
+    ### only classiication model need to put test_x, test_y for validation ###
     def __init__(self, model, max_epoch, batch_size, learning_rate, Input_shape, loss_function):
         self.max_epoch = max_epoch
         self.batch_size = batch_size
@@ -14,27 +15,32 @@ class Training_model:
         elif self.loss_function_name == "cross_entorpy_loss":
             self.loss_function = nn.CrossEntropyLoss()
 
-    def training(self, x, y):
+    def training(self, Train_x, Train_y, Test_x, Test_y):
         print("---------------------- model training ------------------------")
         self.net = self.net_model.to(device)
-        x = variable(torch.FloatTensor(x)).to(device)
+        Train_x = variable(torch.FloatTensor(Train_x)).to(device)
 
         if self.loss_function_name == "cross_entorpy_loss":
-            y = variable(torch.LongTensor(y)).to(device)
+            Train_y = variable(torch.LongTensor(Train_y)).to(device)
+
+            Test_x = variable(torch.FloatTensor(Test_x)).to(device)
+            Test_y = variable(torch.LongTensor(Test_y)).to(device)
 
         else:
-            y = variable(torch.FloatTensor(y)).to(device)
+            Train_y = variable(torch.FloatTensor(Train_y)).to(device)
 
-        Tensorloader = data.TensorDataset(x, y)
+        Tensorloader = data.TensorDataset(Train_x, Train_y)
         Tensorloader = data.DataLoader(dataset=Tensorloader, batch_size=self.batch_size, shuffle=True)
 
         Training_Loss = [];
-        Training_Acc = []
+        Training_Acc = [];
+        Validation_Acc = []
         for epoch in range(1, self.max_epoch + 1):
             self.net.train()
 
             Training_Batch_Loss = [];
-            Training_Batch_Acc = []
+            Training_Batch_Acc = [];
+            Validation_Batch_Acc = []
             for i, data_loader in enumerate(Tensorloader):
                 self.optimizer.zero_grad()
                 In_data, T_data = data_loader
@@ -52,6 +58,13 @@ class Training_model:
                                                        np.argmax(output.cpu().data.numpy(), axis=1))
                     Training_Batch_Acc.append(accuracy_training)
 
+                    self.net.eval()
+                    accuracy_test = accuracy_score(Test_y.cpu().data.numpy(),
+                                                   np.argmax(self.net(Test_x).cpu().data.numpy(), axis=1))
+                    Validation_Batch_Acc.append(accuracy_test)
+
+                    self.net.train()
+
             Training_Batch_Loss = np.mean(Training_Batch_Loss)
             Training_Loss.append(Training_Batch_Loss)
 
@@ -59,19 +72,22 @@ class Training_model:
                 Training_Batch_Acc = np.mean(Training_Batch_Acc)
                 Training_Acc.append(Training_Batch_Acc)
 
+                Validation_Batch_Acc = np.mean(Validation_Batch_Acc)
+                Validation_Acc.append(Validation_Batch_Acc)
+
             if epoch == 1:
                 if self.loss_function_name == "mean_square_error_loss":
-                    print("Training -->  epoch %3d, mean square error: %4.4f" % (epoch, Training_Batch_Loss))
+                    print("Training -->  epoch %4d, mean square error: %5.4f" % (epoch, Training_Batch_Loss))
                 elif self.loss_function_name == "cross_entorpy_loss":
-                    print("Training -->  epoch %3d, cross entropy loss: %4.4f, accuracy: %4.4f" % (
-                    epoch, Training_Batch_Loss, Training_Batch_Acc))
+                    print("Training -->  epoch %4d, cross entropy loss: %5.4f, accuracy: %5.4f, Val accuracy: %4.4f" % (
+                    epoch, Training_Batch_Loss, Training_Batch_Acc, Validation_Batch_Acc))
 
             elif epoch % 50 == 0:
                 if self.loss_function_name == "mean_square_error_loss":
-                    print("         -->  epoch %3d, mean square error: %4.4f" % (epoch, Training_Batch_Loss))
+                    print("         -->  epoch %4d, mean square error: %5.4f" % (epoch, Training_Batch_Loss))
                 elif self.loss_function_name == "cross_entorpy_loss":
-                    print("         -->  epoch %3d, cross entropy loss: %4.4f, accuracy: %4.4f" % (
-                    epoch, Training_Batch_Loss, Training_Batch_Acc))
+                    print("         -->  epoch %4d, cross entropy loss: %5.4f, accuracy: %5.4f, Val accuracy: %4.4f" % (
+                    epoch, Training_Batch_Loss, Training_Batch_Acc, Validation_Batch_Acc))
 
         Training_Loss = np.array(Training_Loss)
         Training_Acc = np.array(Training_Acc)
@@ -88,10 +104,21 @@ class Training_model:
             plt.figure(figsize=(8, 4))
             plt.title("Training Accuracy Curve", fontsize=15)
             plt.plot(np.arange(1, len(Training_Loss) + 1), Training_Acc, color="red", label="Training Accuracy")
+            plt.plot(np.arange(1, len(Validation_Acc) + 1), Validation_Acc, color="blue", label="Validation Accuracy")
             plt.xlabel("epoch", fontsize=10)
-            plt.ylabel("loss", fontsize=10)
+            plt.xlabel("epoch", fontsize=10)
+            plt.ylabel("Accuracy", fontsize=10)
             plt.grid(True)
             plt.legend(loc="best", fontsize=12)
 
         plt.show()
         return self
+    
+########################################### e.g. ###########################################
+Stacked_LSTM= net()
+Stacked_LSTM_Training= Training_model(model= Stacked_LSTM, max_epoch= 100, batch_size= 64, learning_rate=0.01, Input_shape= x_train.shape, loss_function= "mean_square_error_loss")
+Stacked_LSTM_Training= Stacked_LSTM_Training.training(x_train, y_train, x_train, y_train)
+
+Cov2d_Auto= net()
+Cov2d_Auto_Training= Training_model(model= Cov2d_Auto, max_epoch= 100, batch_size= 64, learning_rate=0.01, Input_shape= x_train.shape, loss_function= "cross_entorpy_loss")
+Cov2d_Auto_Training= Stacked_LSTM_Training.training(x_train, y_train, x_validation, x_validation)
